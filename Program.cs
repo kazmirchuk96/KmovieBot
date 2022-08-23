@@ -36,8 +36,7 @@ namespace ConsoleApp8
 
                         //Делаем запрос по ip берем 50 результатов из страницы, которую рандомили выше. Максимум из страницы можно достать 50 фильмов
                         
-                        var client =
-                            new RestClient(
+                        var client = new RestClient(
                                 $"https://moviesminidatabase.p.rapidapi.com/movie/order/byRating/?page_size=50&page={page}");
                         var request = new RestRequest(Method.GET);
                         request.AddHeader("X-RapidAPI-Key", "00269e84d5msh3a6a436ff9522e8p1f5489jsn93854c5bbb0e");
@@ -54,30 +53,26 @@ namespace ConsoleApp8
                         randomMovie = list[random.Next(0, list.Count)];
 
                         //достаем инфу про фильм
-                        var client1 =
-                            new RestClient(
+                        client = new RestClient(
                                 $"https://moviesminidatabase.p.rapidapi.com/movie/id/{randomMovie.imdb_id}/");
-                        var request1 = new RestRequest(Method.GET);
-                        request1.AddHeader("X-RapidAPI-Key", "24a71e0ea3msh55c8e1302d48751p19be5bjsn4deef94609db");
-                        request1.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
-                        IRestResponse response1 = client1.Execute(request1);
+                        request = new RestRequest(Method.GET);
+                        request.AddHeader("X-RapidAPI-Key", "24a71e0ea3msh55c8e1302d48751p19be5bjsn4deef94609db");
+                        request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
+                        response = client.Execute(request);
 
-                        //конвертим получаенный результат в строку, обрезаем лишние и потом десиреализуем
-                        string stringResponse1 = response1.Content;
-                        randomMovie.year = int.Parse(stringResponse1.Substring(stringResponse1.IndexOf("year") + 6, 4));
-                        string imageUrl = stringResponse1.Substring(stringResponse1.IndexOf("image_url") + 12);
-                        randomMovie.image_url = imageUrl.Remove(imageUrl.IndexOf("\""));
+                        //десерилизация полученного результата
+                        output = deserialize.Deserialize<Dictionary<string, string>>(response);
+                        randomMovie = JsonConvert.DeserializeObject<Movie>(output["results"]);
 
-                    } while (randomMovie.year < 2010);
+                    } while (randomMovie.year < 2010);//изменить на текущий год минус 10
 
-                    await botClient.SendPhotoAsync(message.Chat, randomMovie.image_url,
-                        $"Назва фільму: {randomMovie.title}\nЖанр:\nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
+                    await botClient.SendPhotoAsync(message.Chat, randomMovie.banner,
+                        $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
                         replyMarkup: new InlineKeyboardMarkup(
-                            InlineKeyboardButton.WithUrl(
-                                "Переглянути",
+                            InlineKeyboardButton.WithUrl("Переглянути",
                                 $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&sxsrf=ALiCzsayODZ0C_VwPTF9TBwSuUFkdbSUdg%3A1660508066429&ei=olf5YqziGYbOrgTp2KCACQ&ved=0ahUKEwisu8jLksf5AhUGp4sKHWksCJAQ4dUDCA4&uact=5&oq={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&gs_lcp=Cgdnd3Mtd2l6EAM6BwgjELADECc6BwgAEEcQsAM6BAgjECc6BggjECcQEzoFCAAQgAQ6CggAEMsBEEYQ_wE6BQguEMsBOgUIABDLAToLCC4QxwEQrwEQywE6CwguEMcBENEDEMsBOgYIABAeEBY6BQguEIAESgQIQRgASgQIRhgAUD1Y24oEYOWMBGgCcAF4AIABjAGIAdUQkgEEMjIuMpgBAKABAaABAsgBCsABAQ&sclient=gws-wiz")));
 
-                    //создание кнопок для просмотра фильма - вынести в отдельный класс
+                    //создание кнопок для оценки фильма - вынести в отдельный класс
                     var keyboard = new InlineKeyboardMarkup(new[]
                     {
                         new[] // first row
@@ -101,8 +96,6 @@ namespace ConsoleApp8
                     text: $"Дякую! Я врахую твій відгук під час наступних рекоменадацій😊",
                     showAlert: true
                 );
-
-                //
             }
         }
 
