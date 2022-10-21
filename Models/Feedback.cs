@@ -6,10 +6,13 @@ namespace ConsoleApp8.Models
 {
     internal class Feedback
     {
-        public int ChatId { get; set; }
-        
-        public int MovieId { get; set; }
-
+        public string CategoryName { get; set; }
         public int Grade { get; set; }
+
+        public Feedback (string categoryName, int grade)
+        {
+            CategoryName = categoryName;
+            Grade = grade;
+        }
     }
 }

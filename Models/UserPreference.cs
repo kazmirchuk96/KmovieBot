@@ -4,10 +4,18 @@ using System.Text;
 
 namespace ConsoleApp8.Models
 {
+
+    [Serializable]
     internal class UserPreference
     {
-        public int ChatId { get; set; }
-        public List<Feedback> ListFeedbacks{ get; set; }
+        public long ChatId { get; set; }
+        public Dictionary<string, int> CategoriesGrades{ get; set; }
+
+        public UserPreference(long chatID)
+        {
+            ChatId = chatID;
+            CategoriesGrades = new Dictionary<string, int>();
+        }
 
     }
 }
