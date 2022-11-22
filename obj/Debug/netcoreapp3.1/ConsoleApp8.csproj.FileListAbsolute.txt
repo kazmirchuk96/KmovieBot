@@ -20,3 +20,4 @@ C:\Users\ikazm\source\repos\ConsoleApp8\bin\Debug\netcoreapp3.1\Newtonsoft.Json.
 C:\Users\ikazm\source\repos\ConsoleApp8\bin\Debug\netcoreapp3.1\System.Threading.Channels.dll
 C:\Users\ikazm\source\repos\ConsoleApp8\bin\Debug\netcoreapp3.1\Telegram.Bot.dll
 C:\Users\ikazm\source\repos\ConsoleApp8\bin\Debug\netcoreapp3.1\Telegram.Bot.Extensions.Polling.dll
+C:\Users\ikazm\source\repos\ConsoleApp8\bin\Debug\netcoreapp3.1\System.Drawing.Common.dll

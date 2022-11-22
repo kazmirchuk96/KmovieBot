@@ -10,6 +10,7 @@
         "dependencies": {
           "Newtonsoft.Json": "13.0.1",
           "RestSharp.Serializers.Utf8Json": "106.15.0",
+          "System.Drawing.Common": "7.0.0",
           "Telegram.Bot": "18.0.0",
           "Telegram.Bot.Extensions.Polling": "1.0.2"
         },
@@ -44,6 +45,14 @@
           "lib/netstandard2.0/RestSharp.Serializers.Utf8Json.dll": {
             "assemblyVersion": "106.15.0.0",
             "fileVersion": "106.15.0.0"
+          }
+        }
+      },
+      "System.Drawing.Common/7.0.0": {
+        "runtime": {
+          "lib/netstandard2.0/System.Drawing.Common.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
           }
         }
       },
@@ -205,6 +214,13 @@
       "sha512": "sha512-NGfkn2FDyJGM5nfOJrx11vSYeevjETTnxrowkUpW+4Agg8hPHMPHBFRPAfKYm8rHCL9Qf8nKEuTE4Vsyu+qFuw==",
       "path": "restsharp.serializers.utf8json/106.15.0",
       "hashPath": "restsharp.serializers.utf8json.106.15.0.nupkg.sha512"
+    },
+    "System.Drawing.Common/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KIX+oBU38pxkKPxvLcLfIkOV5Ien8ReN78wro7OF5/erwcmortzeFx+iBswlh2Vz6gVne0khocQudGwaO1Ey6A==",
+      "path": "system.drawing.common/7.0.0",
+      "hashPath": "system.drawing.common.7.0.0.nupkg.sha512"
     },
     "System.IO/4.3.0": {
       "type": "package",

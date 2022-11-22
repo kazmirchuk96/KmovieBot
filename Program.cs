@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using RestSharp;
@@ -11,13 +13,17 @@ using Telegram.Bot.Types.ReplyMarkups;
 using ConsoleApp8.Models;
 using RestSharp.Serialization.Json;
 using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
+using Utf8Json.Formatters;
+using File = System.IO.File;
+
 
 namespace ConsoleApp8
 {
     internal class Program
     {
-        static TelegramBotClient bot = new TelegramBotClient("5413864028:AAFgY8RbjQtiKSBhDcacFmTXc4tOlwFO1JQ");
-
+        static TelegramBotClient bot = new("5413864028:AAFgY8RbjQtiKSBhDcacFmTXc4tOlwFO1JQ");
         public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update,
             CancellationToken cancellationToken)
         {
@@ -28,7 +34,6 @@ namespace ConsoleApp8
             List<string> top3CategoryList = new List<string>();//список ТОП 3 категорий конкретного пользователя, категория попадает в список, если у неё полож. оценка
             string fileName = @"userpreferenses.json"; //файл в который записываем предпочтения пользователя
 
-
             bool top3CategoryExists = false;
             bool checkPreference = false;//?
             bool movieGenreEquelPrefereble = false;//?
@@ -38,8 +43,9 @@ namespace ConsoleApp8
                 var message = update.Message;
                 chatId = message.Chat.Id;
 
-                
-                string data = ReadingDataFromFile(fileName);//получаем информацию из файла c предпочтениями пользователя
+
+                string
+                    data = ReadingDataFromFile(fileName); //получаем информацию из файла c предпочтениями пользователя
 
                 if (message.Text != null && message.Text.ToLower() == "/start") //Button "Start" was pressed
                 {
@@ -47,24 +53,29 @@ namespace ConsoleApp8
                     if (data != String.Empty)
                     {
                         listUsersPreference = JsonConvert.DeserializeObject<List<UserPreference>>(data);
-                        var userPreference = listUsersPreference.FirstOrDefault(x => x.ChatId == chatId);  //ищем текущего пользователя
+                        var userPreference =
+                            listUsersPreference.FirstOrDefault(x => x.ChatId == chatId); //ищем текущего пользователя
 
                         //проверка есть ли в списке предопчтений минимум 3 категории с положительны значением
-                        if (userPreference != null && userPreference.CategoriesGrades.Where(x=>x.Value>0).ToList().Count >= 3)
+                        if (userPreference != null &&
+                            userPreference.CategoriesGrades.Where(x => x.Value > 0).ToList().Count >= 3)
                         {
                             //сортируем категории по спаданию оценок
-                            var top3CategoryDict = userPreference.CategoriesGrades.OrderByDescending(pair => pair.Value).Take(3);
+                            var top3CategoryDict = userPreference.CategoriesGrades.OrderByDescending(pair => pair.Value)
+                                .Take(3);
 
                             //Записываем топ категории в List
                             foreach (var variable in top3CategoryDict)
                             {
                                 top3CategoryList.Add(variable.Key);
                             }
-                            top3CategoryExists = true;//топ 3 категории найдены
+
+                            top3CategoryExists = true; //топ 3 категории найдены
                         }
                         else
                         {
-                            top3CategoryExists = false;//не получилось найти топ 3 категории пользователя (мало оценок)
+                            top3CategoryExists =
+                                false; //не получилось найти топ 3 категории пользователя (м-ало оценок)
                         }
                     }
 
@@ -74,52 +85,62 @@ namespace ConsoleApp8
                         Random random = new Random();
                         int page = random.Next(1, 33);
 
-                        try
-                        {
-                            //Делаем запрос по ip берем 50 результатов из страницы, которую рандомили выше. Максимум из страницы можно достать 50 фильмов
-                            var client = new RestClient($"https://moviesminidatabase.p.rapidapi.com/movie/order/byRating/?page_size=50&page={page}");
-                            var request = new RestRequest(Method.GET);
-                            request.AddHeader("X-RapidAPI-Key", "00269e84d5msh3a6a436ff9522e8p1f5489jsn93854c5bbb0e");
-                            request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
-                            IRestResponse response = client.Execute(request);
+                        //Делаем запрос по ip берем 50 результатов из страницы, которую рандомили выше. Максимум из страницы можно достать 50 фильмов
+                        var client =
+                            new RestClient(
+                                $"https://moviesminidatabase.p.rapidapi.com/movie/order/byRating/?page_size=50&page={page}");
+                        var request = new RestRequest(Method.GET);
+                        request.AddHeader("X-RapidAPI-Key", "00269e84d5msh3a6a436ff9522e8p1f5489jsn93854c5bbb0e");
+                        request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
+                        IRestResponse response = client.Execute(request);
 
-                            //десерилизация полученного результата
-                            var deserialize = new JsonDeserializer();
-                            var output = deserialize.Deserialize<Dictionary<string, string>>(response);
-                            var list = JsonConvert.DeserializeObject<List<Movie>>(output["results"]);
+                        //десерилизация полученного результата
+                        var deserialize = new JsonDeserializer();
+                        var output = deserialize.Deserialize<Dictionary<string, string>>(response);
+                        var list = JsonConvert.DeserializeObject<List<Movie>>(output["results"]);
 
-                            //из листа из 50-ти флиьмов рандомим 1
-                            randomMovie = list[random.Next(0, list.Count)];
+                        //из листа из 50-ти флиьмов рандомим 1
+                        randomMovie = list[random.Next(0, list.Count)];
 
-                            //достаем инфу про фильм
-                            client = new RestClient($"https://moviesminidatabase.p.rapidapi.com/movie/id/{randomMovie.imdb_id}/");
-                            request = new RestRequest(Method.GET);
-                            request.AddHeader("X-RapidAPI-Key", "24a71e0ea3msh55c8e1302d48751p19be5bjsn4deef94609db");
-                            request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
-                            response = client.Execute(request);
+                        //достаем инфу про фильм
+                        client = new RestClient(
+                            $"https://moviesminidatabase.p.rapidapi.com/movie/id/{randomMovie.imdb_id}/");
+                        request = new RestRequest(Method.GET);
+                        request.AddHeader("X-RapidAPI-Key", "24a71e0ea3msh55c8e1302d48751p19be5bjsn4deef94609db");
+                        request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
+                        response = client.Execute(request);
 
-                            //десерилизация полученного результата
-                            output = deserialize.Deserialize<Dictionary<string, string>>(response);
-                            randomMovie = JsonConvert.DeserializeObject<Movie>(output["results"]);
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine($"Помилка APi + {e}");
-                            throw;
-                        }
-                        
+                        //десерилизация полученного результата
+                        output = deserialize.Deserialize<Dictionary<string, string>>(response);
+                        randomMovie = JsonConvert.DeserializeObject<Movie>(output["results"]);
 
-                    } while (randomMovie.year < 2012 || (top3CategoryExists && !top3CategoryList.Contains(randomMovie.Genres[0].Name))); //если есть список из 3 предпочитаемых категорий, но текущий фильм не совпадает с этими категориями
-
+                    } while (randomMovie.year < 2012 ||
+                             (top3CategoryExists &&
+                              !top3CategoryList.Contains(randomMovie.Genres[0]
+                                  .Name))); //если есть список из 3 предпочитаемых категорий, но текущий фильм не совпадает с этими категориями
 
                     InlineKeyboardButton[][] array = new InlineKeyboardButton[1][];
                     array[0] = new[]
                     {
-                        InlineKeyboardButton.WithUrl("Рейтинг kinopoisk", $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D0%BA%D0%B8%D0%BD%D0%BE%D0%BF%D0%BE%D0%B8%D1%81%D0%BA&sxsrf=ALiCzsYjrUvCyZzCE25i8w-qj8dt4q2x8Q%3A1666198515496&ei=8ytQY8neHY-nrgTOlq8I&oq={randomMovie.title}+{randomMovie.year}+%D0%BA%D0%B8%D0%BD%D0%BE&gs_lcp=Cgdnd3Mtd2l6EAMYADIFCCEQoAEyBQghEKABOgoIABBHENYEELADOgQIIRAVSgQIQRgASgQIRhgAULEGWKQNYKkcaAFwAXgAgAHBAYgB2QSSAQMwLjSYAQCgAQHIAQPAAQE&sclient=gws-wiz"),
-                        InlineKeyboardButton.WithUrl("Переглянути", $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&sxsrf=ALiCzsayODZ0C_VwPTF9TBwSuUFkdbSUdg%3A1660508066429&ei=olf5YqziGYbOrgTp2KCACQ&ved=0ahUKEwisu8jLksf5AhUGp4sKHWksCJAQ4dUDCA4&uact=5&oq={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&gs_lcp=Cgdnd3Mtd2l6EAM6BwgjELADECc6BwgAEEcQsAM6BAgjECc6BggjECcQEzoFCAAQgAQ6CggAEMsBEEYQ_wE6BQguEMsBOgUIABDLAToLCC4QxwEQrwEQywE6CwguEMcBENEDEMsBOgYIABAeEBY6BQguEIAESgQIQRgASgQIRhgAUD1Y24oEYOWMBGgCcAF4AIABjAGIAdUQkgEEMjIuMpgBAKABAaABAsgBCsABAQ&sclient=gws-wiz")
+                        InlineKeyboardButton.WithUrl("Рейтинг kinopoisk",
+                            $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D0%BA%D0%B8%D0%BD%D0%BE%D0%BF%D0%BE%D0%B8%D1%81%D0%BA&sxsrf=ALiCzsYjrUvCyZzCE25i8w-qj8dt4q2x8Q%3A1666198515496&ei=8ytQY8neHY-nrgTOlq8I&oq={randomMovie.title}+{randomMovie.year}+%D0%BA%D0%B8%D0%BD%D0%BE&gs_lcp=Cgdnd3Mtd2l6EAMYADIFCCEQoAEyBQghEKABOgoIABBHENYEELADOgQIIRAVSgQIQRgASgQIRhgAULEGWKQNYKkcaAFwAXgAgAHBAYgB2QSSAQMwLjSYAQCgAQHIAQPAAQE&sclient=gws-wiz"),
+                        InlineKeyboardButton.WithUrl("Переглянути",
+                            $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&sxsrf=ALiCzsayODZ0C_VwPTF9TBwSuUFkdbSUdg%3A1660508066429&ei=olf5YqziGYbOrgTp2KCACQ&ved=0ahUKEwisu8jLksf5AhUGp4sKHWksCJAQ4dUDCA4&uact=5&oq={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&gs_lcp=Cgdnd3Mtd2l6EAM6BwgjELADECc6BwgAEEcQsAM6BAgjECc6BggjECcQEzoFCAAQgAQ6CggAEMsBEEYQ_wE6BQguEMsBOgUIABDLAToLCC4QxwEQrwEQywE6CwguEMcBENEDEMsBOgYIABAeEBY6BQguEIAESgQIQRgASgQIRhgAUD1Y24oEYOWMBGgCcAF4AIABjAGIAdUQkgEEMjIuMpgBAKABAaABAsgBCsABAQ&sclient=gws-wiz")
                     };
 
-                    await botClient.SendPhotoAsync(message.Chat, randomMovie.banner, $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n", replyMarkup: new InlineKeyboardMarkup(array));
+                    if (GetBannerSize(randomMovie) < 5)
+                    {
+
+                        await botClient.SendPhotoAsync(message.Chat, randomMovie.banner,
+                            $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
+                            replyMarkup: new InlineKeyboardMarkup(array));
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(message.Chat,
+                            $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
+                            replyMarkup: new InlineKeyboardMarkup(array));
+                    }
 
 
                     /*Берём первый жанр фильма и дальше передаем его через нажатие кнопки с оценкой,
@@ -133,13 +154,13 @@ namespace ConsoleApp8
                             InlineKeyboardButton.WithCallbackData("Добре✅", $"1,{chatId},{genre}")
                         },
                     });
-                    await botClient.SendTextMessageAsync(message.Chat, "Для покращення видачі, будь ласка, оціни рекомендацію🍿", cancellationToken: cancellationToken, replyMarkup: keyboard);
+                    await botClient.SendTextMessageAsync(message.Chat,
+                        "Для покращення видачі, будь ласка, оціни рекомендацію🍿", cancellationToken: cancellationToken,
+                        replyMarkup: keyboard);
                 }
             }
 
-            try
-            {
-                if (update.CallbackQuery != null) //если была нажата одна из кнопок с отзывом
+            if (update.CallbackQuery != null) //если была нажата одна из кнопок с отзывом
                 {
                     string[] callBackDataArray = update.CallbackQuery.Data.Split(','); //оценка, chatId, жанр
 
@@ -186,13 +207,6 @@ namespace ConsoleApp8
                         showAlert: true,
                         cancellationToken: cancellationToken);
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
-
         }
 
         public static string ReadingDataFromFile(string fileName)
@@ -207,6 +221,22 @@ namespace ConsoleApp8
                 data = System.IO.File.ReadAllText(fileName);//получаем информацию из файла
             }
             return data;
+        }
+
+        //получение размера баннера
+        public static long GetBannerSize(Movie movie)
+        {
+            string filePath = @"banner.jpg";//место куда будем сохранять картинку
+
+            //загрузка баннера по url в папку с программой
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(movie.banner, @"banner.jpg");
+            }
+            long sizeInBytes = new FileInfo(filePath).Length; //get file size in bytes
+            long sizeInMbytes = sizeInBytes / (1024 *1024);//get file size in Mbytes
+            File.Delete(filePath);//удаляем файл из папкм
+            return sizeInMbytes;
         }
         public static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception,
             CancellationToken cancellationToken)
@@ -229,6 +259,23 @@ namespace ConsoleApp8
                 receiverOptions,
                 cancellationToken
             );
+
+            //Hiding Program Icon from Taskbar
+            /*--------------------------------------*/
+            [DllImport("kernel32.dll")]
+            static extern IntPtr GetConsoleWindow();
+
+            [DllImport("user32.dll")]
+            static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+            const int SW_HIDE = 0;
+            //const int SW_SHOW = 5;
+
+            var handle = GetConsoleWindow();
+
+            // Hide
+            ShowWindow(handle, SW_HIDE);
+            /*--------------------------------------*/
             Console.ReadLine();
         }
     }

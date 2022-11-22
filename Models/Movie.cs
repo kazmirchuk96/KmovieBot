@@ -8,10 +8,10 @@ namespace ConsoleApp8.Models
     internal class Movie
     {
         public string imdb_id { get; set; }
-        public string title { get; set; }
-        public string rating { get; set; }
-        public int year { get; set; }
-        public string banner { get; set; }
+        public string? title { get; set; }
+        public string? rating { get; set; }
+        public int? year { get; set; }
+        public string? banner { get; set; }
 
         [JsonProperty("gen")]
         public List<Genre> Genres {get;set;}
