@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +14,7 @@ using RestSharp.Serialization.Json;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
-using Utf8Json.Formatters;
 using File = System.IO.File;
-
 
 namespace ConsoleApp8
 {
@@ -33,6 +30,7 @@ namespace ConsoleApp8
             List<UserPreference> listUsersPreference = new List<UserPreference>(); //список предпочтений всех пользователей
             List<string> top3CategoryList = new List<string>();//список ТОП 3 категорий конкретного пользователя, категория попадает в список, если у неё полож. оценка
             string fileName = @"userpreferenses.json"; //файл в который записываем предпочтения пользователя
+            UserPreference userPreference = new UserPreference(-1);//предпочтения текущего пользователя
 
             bool top3CategoryExists = false;
             bool checkPreference = false;//?
@@ -42,27 +40,22 @@ namespace ConsoleApp8
             {
                 var message = update.Message;
                 chatId = message.Chat.Id;
-
-
-                string
-                    data = ReadingDataFromFile(fileName); //получаем информацию из файла c предпочтениями пользователя
+                string data = ReadingDataFromFile(fileName); //получаем информацию из файла c предпочтениями пользователя
+                
 
                 if (message.Text != null && message.Text.ToLower() == "/start") //Button "Start" was pressed
                 {
                     //достаём предпочтения всех пользователей из чата
                     if (data != String.Empty)
                     {
-                        listUsersPreference = JsonConvert.DeserializeObject<List<UserPreference>>(data);
-                        var userPreference =
-                            listUsersPreference.FirstOrDefault(x => x.ChatId == chatId); //ищем текущего пользователя
+                        listUsersPreference = JsonConvert.DeserializeObject<List<UserPreference>>(data); 
+                        userPreference = listUsersPreference.FirstOrDefault(x => x.ChatId == chatId); //ищем текущего пользователя
 
                         //проверка есть ли в списке предопчтений минимум 3 категории с положительны значением
-                        if (userPreference != null &&
-                            userPreference.CategoriesGrades.Where(x => x.Value > 0).ToList().Count >= 3)
+                        if (userPreference != null && userPreference.CategoriesGrades.Where(x => x.Value > 0).ToList().Count >= 3)
                         {
                             //сортируем категории по спаданию оценок
-                            var top3CategoryDict = userPreference.CategoriesGrades.OrderByDescending(pair => pair.Value)
-                                .Take(3);
+                            var top3CategoryDict = userPreference.CategoriesGrades.OrderByDescending(pair => pair.Value).Take(3);
 
                             //Записываем топ категории в List
                             foreach (var variable in top3CategoryDict)
@@ -72,11 +65,11 @@ namespace ConsoleApp8
 
                             top3CategoryExists = true; //топ 3 категории найдены
                         }
-                        else
+                        /*else
                         {
                             top3CategoryExists =
                                 false; //не получилось найти топ 3 категории пользователя (м-ало оценок)
-                        }
+                        }*/
                     }
 
                     do
@@ -86,9 +79,7 @@ namespace ConsoleApp8
                         int page = random.Next(1, 33);
 
                         //Делаем запрос по ip берем 50 результатов из страницы, которую рандомили выше. Максимум из страницы можно достать 50 фильмов
-                        var client =
-                            new RestClient(
-                                $"https://moviesminidatabase.p.rapidapi.com/movie/order/byRating/?page_size=50&page={page}");
+                        var client = new RestClient($"https://moviesminidatabase.p.rapidapi.com/movie/order/byRating/?page_size=50&page={page}");
                         var request = new RestRequest(Method.GET);
                         request.AddHeader("X-RapidAPI-Key", "00269e84d5msh3a6a436ff9522e8p1f5489jsn93854c5bbb0e");
                         request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
@@ -103,8 +94,7 @@ namespace ConsoleApp8
                         randomMovie = list[random.Next(0, list.Count)];
 
                         //достаем инфу про фильм
-                        client = new RestClient(
-                            $"https://moviesminidatabase.p.rapidapi.com/movie/id/{randomMovie.imdb_id}/");
+                        client = new RestClient($"https://moviesminidatabase.p.rapidapi.com/movie/id/{randomMovie.imdb_id}/");
                         request = new RestRequest(Method.GET);
                         request.AddHeader("X-RapidAPI-Key", "24a71e0ea3msh55c8e1302d48751p19be5bjsn4deef94609db");
                         request.AddHeader("X-RapidAPI-Host", "moviesminidatabase.p.rapidapi.com");
@@ -114,10 +104,7 @@ namespace ConsoleApp8
                         output = deserialize.Deserialize<Dictionary<string, string>>(response);
                         randomMovie = JsonConvert.DeserializeObject<Movie>(output["results"]);
 
-                    } while (randomMovie.year < 2012 ||
-                             (top3CategoryExists &&
-                              !top3CategoryList.Contains(randomMovie.Genres[0]
-                                  .Name))); //если есть список из 3 предпочитаемых категорий, но текущий фильм не совпадает с этими категориями
+                    } while (randomMovie.year < 2012 || (top3CategoryExists && !top3CategoryList.Contains(randomMovie.Genres[0].Name)) || userPreference.AlreadySuggested.Contains(randomMovie.imdb_id)); //если есть список из 3 предпочитаемых категорий, но текущий фильм не совпадает с этими категориями
 
                     InlineKeyboardButton[][] array = new InlineKeyboardButton[1][];
                     array[0] = new[]
@@ -128,20 +115,19 @@ namespace ConsoleApp8
                             $"https://www.google.com/search?q={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&sxsrf=ALiCzsayODZ0C_VwPTF9TBwSuUFkdbSUdg%3A1660508066429&ei=olf5YqziGYbOrgTp2KCACQ&ved=0ahUKEwisu8jLksf5AhUGp4sKHWksCJAQ4dUDCA4&uact=5&oq={randomMovie.title}+{randomMovie.year}+%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%B5%D1%82%D1%8C+%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&gs_lcp=Cgdnd3Mtd2l6EAM6BwgjELADECc6BwgAEEcQsAM6BAgjECc6BggjECcQEzoFCAAQgAQ6CggAEMsBEEYQ_wE6BQguEMsBOgUIABDLAToLCC4QxwEQrwEQywE6CwguEMcBENEDEMsBOgYIABAeEBY6BQguEIAESgQIQRgASgQIRhgAUD1Y24oEYOWMBGgCcAF4AIABjAGIAdUQkgEEMjIuMpgBAKABAaABAsgBCsABAQ&sclient=gws-wiz")
                     };
 
-                    if (GetBannerSize(randomMovie) < 5)
+                    if (GetBannerSize(randomMovie) < 5)//по правилам телеграма загружаемая картинка не может превышать 5 мб
                     {
-
                         await botClient.SendPhotoAsync(message.Chat, randomMovie.banner,
                             $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
                             replyMarkup: new InlineKeyboardMarkup(array));
                     }
-                    else
+                    else//если картинка весит больше чем 5 мб, загружаем картинку c надписью фото недоступно
                     {
-                        await botClient.SendTextMessageAsync(message.Chat,
+                        await botClient.SendPhotoAsync(message.Chat, 
+                            @"https://images.app.goo.gl/wFbJEHUT2bmvrgJTA",
                             $"Назва фільму: {randomMovie.title}\nЖанр: {randomMovie.GenListToString()} \nРік виходу: {randomMovie.year}\nРейтинг IMDb: {randomMovie.rating}\n",
                             replyMarkup: new InlineKeyboardMarkup(array));
                     }
-
 
                     /*Берём первый жанр фильма и дальше передаем его через нажатие кнопки с оценкой,
                      по первому жанру фильма будем ставить оценку*/
@@ -161,52 +147,41 @@ namespace ConsoleApp8
             }
 
             if (update.CallbackQuery != null) //если была нажата одна из кнопок с отзывом
+            {
+                string[] callBackDataArray = update.CallbackQuery.Data.Split(','); //оценка, chatId, жанр
+                int grade = int.Parse(callBackDataArray[0]);
+                chatId = long.Parse(callBackDataArray[1]);
+                genre = callBackDataArray[2];
+                
+                var currentUserPreference = new UserPreference(chatId); //предполагаем что записи в файле с текущим chatID нет 
+                string data = ReadingDataFromFile(fileName);
+
+                listUsersPreference = (data != string.Empty) ? JsonConvert.DeserializeObject<List<UserPreference>>(data) : new List<UserPreference>(); //достаем предпочтения всех пользователей с файла
+
+                if (listUsersPreference.Count != 0 && listUsersPreference.Exists(x => x.ChatId == chatId))
                 {
-                    string[] callBackDataArray = update.CallbackQuery.Data.Split(','); //оценка, chatId, жанр
-
-                    int grade = int.Parse(callBackDataArray[0]);
-                    chatId = long.Parse(callBackDataArray[1]);
-                    genre = callBackDataArray[2];
-
-                    var currentUserPreference =
-                        new UserPreference(chatId); //предполагаем что записи в файле с текущим chatID нет 
-
-                    string data = ReadingDataFromFile(fileName);
-
-                    listUsersPreference = (data != string.Empty)
-                        ? JsonConvert.DeserializeObject<List<UserPreference>>(data)
-                        : new List<UserPreference>(); //достаем предпочтения всех пользователей с файла
-
-                    if (listUsersPreference.Count != 0 && listUsersPreference.Exists(x => x.ChatId == chatId))
-                    {
-                        currentUserPreference =
-                            listUsersPreference.Where(x => x.ChatId == chatId)
-                                .First(); //запись с текущим chatId уже есть
-                        listUsersPreference.Remove(
-                            currentUserPreference); //удаляем текущий элемент из листа, в дальше сменим ему оценку и снова запишем
-                    }
-
-                    //получаем значение из словаря по ключу название категории
-                    if (currentUserPreference.CategoriesGrades.ContainsKey(genre)) //если значение по ключу существует
-                    {
-                        currentUserPreference.CategoriesGrades[genre] += grade;
-                    }
-                    else
-                    {
-                        currentUserPreference.CategoriesGrades.Add(genre, grade);
-                    }
-
-                    listUsersPreference.Add(currentUserPreference);
-
-                    string json = JsonConvert.SerializeObject(listUsersPreference);
-                    System.IO.File.WriteAllText(fileName, json);
-
-                    await botClient.AnswerCallbackQueryAsync(
-                        callbackQueryId: update.CallbackQuery.Id,
-                        text: $"Дякую! Я врахую твій відгук під час наступних рекоменадацій😊",
-                        showAlert: true,
-                        cancellationToken: cancellationToken);
+                    currentUserPreference = listUsersPreference.Where(x => x.ChatId == chatId).First(); //запись с текущим chatId уже есть
+                    listUsersPreference.Remove(currentUserPreference); //удаляем текущий элемент из листа, в дальше сменим ему оценку и снова запишем
                 }
+
+                //получаем значение из словаря по ключу название категории
+                if (currentUserPreference.CategoriesGrades.ContainsKey(genre)) //если значение по ключу существует
+                {
+                    currentUserPreference.CategoriesGrades[genre] += grade;
+                }
+                else
+                {
+                    currentUserPreference.CategoriesGrades.Add(genre, grade);
+                }
+
+                currentUserPreference.AlreadySuggested.Add(randomMovie.imdb_id);//записываем id фильма, который пользователь оценил, чтоб не предлагать этот фильм в будушем
+                listUsersPreference.Add(currentUserPreference);
+
+                string json = JsonConvert.SerializeObject(listUsersPreference);
+                File.WriteAllText(fileName, json);
+
+                await botClient.AnswerCallbackQueryAsync(callbackQueryId: update.CallbackQuery.Id, text: $"Дякую! Я врахую твій відгук під час наступних рекоменадацій😊", showAlert: true, cancellationToken: cancellationToken);
+            }
         }
 
         public static string ReadingDataFromFile(string fileName)
